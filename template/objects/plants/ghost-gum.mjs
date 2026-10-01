@@ -18,7 +18,7 @@ export function ghostGum(ctx, x, baseY, h, k) {
     }
   }
   return `
-  <g>
+  <g data-rests="ground">
     <path d="M${f(x)},${f(baseY + 10 * k)} Q${f(x - 8 * k)},${f(baseY - h * 0.3)} ${f(fx)},${f(fy)}" ${s.line(p.trunk, f(18 * k))}/>
     <g class="crown" style="transform-origin:${f(fx)}px ${f(fy)}px">${crown}</g>
   </g>`;

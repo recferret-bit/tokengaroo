@@ -8,7 +8,7 @@ export function spinifex(ctx, x, y, k) {
     const a = ((-160 + i * 17.5 + between(-5, 5)) * Math.PI) / 180, len = (18 + between(0, 16)) * k;
     d += `M${f(x)},${f(y)} q${f(Math.cos(a) * len * 0.5)},${f(Math.sin(a) * len * 0.75)} ${f(Math.cos(a) * len)},${f(Math.sin(a) * len)} `;
   }
-  return `<path d="${d}" ${ctx.s.line(ctx.p.spinifex, f(2.5 * k))}/>`;
+  return `<path data-rests="ground" d="${d}" ${ctx.s.line(ctx.p.spinifex, f(2.5 * k))}/>`;
 }
 
 // n tufts scattered along a ground band's surface between x0 and x1.

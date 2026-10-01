@@ -17,7 +17,7 @@ export function palm(ctx, x, baseY, h, lean) {
     fronds += `<path d="M${f(tx)},${f(ty)} Q${f(cx1)},${f(cy1)} ${f(ex)},${f(ey)} Q${f(cx2)},${f(cy2)} ${f(tx)},${f(ty)} Z" ${s.paint(p.palm)}/>`;
   }
   return `
-  <g>
+  <g data-rests="ground">
     <path d="M${f(x)},${f(baseY)} Q${f(x + lean * 0.1)},${f(baseY - h * 0.55)} ${f(tx)},${f(ty)}" ${s.line(p.palm, 14)}/>
     <g class="crown" style="transform-origin:${f(tx)}px ${f(ty)}px;animation-delay:${f(-between(0, 5))}s">${fronds}
       <circle cx="${f(tx)}" cy="${f(ty + 6)}" r="8" ${s.paint(p.palm)}/>

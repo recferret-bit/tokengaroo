@@ -27,9 +27,8 @@ flowchart TD
   gen --> styles[lib/styles.mjs]
   gen --> preview[lib/preview.mjs]
   gen --> rindex[regions/index.mjs]
-  rindex --> th[regions/thailand.mjs]
-  rindex --> au[regions/australia.mjs]
-  th & au --> objs["objects/&lt;kind&gt;/&lt;name&gt;.mjs"]
+  rindex --> regs["regions/&lt;name&gt;.mjs<br/>thailand · australia · washington<br/>moscow · london · china"]
+  regs --> objs["objects/&lt;kind&gt;/&lt;name&gt;.mjs"]
   objs --> canvas
   objs --> css[lib/css.mjs]
 ```
@@ -161,9 +160,10 @@ What `scripts/check.mjs` relies on. Break any of these and it reports `contract`
 | Sky is `<rect data-layer="sky">` | `render()` |
 | `region.landmark` names an existing layer that paints something | region file |
 | Reduced-motion rule is the last rule in `<style>` | `render()` |
+| Surfaces carry `data-surface="ground\|water"`, standing things `data-rests="ground\|water"` (support check; skipped if absent) | each object, on its own elements |
 
 ## Size and performance
 
-- Output is 15–24 KB per variant today (Thailand flat desktop is the smallest, Australia line desktop the largest).
+- Output is 13–24 KB per variant today (Washington flat mobile is the smallest, Australia line desktop the largest).
 - Biggest contributors: `water()` (22 wave lines), `ghostGum()` (15 ellipses), `spinifexField()` (one path per tuft).
 - Rendering is instant. A full harness run over 8 variants takes about 2 s on a laptop.

@@ -7,7 +7,7 @@
 // This file only orchestrates. Everything that gets drawn lives elsewhere:
 //   lib/       canvas + seeded RNG, formats, styles, CSS registry, preview page
 //   objects/   one file per kind of object, grouped by kind (sky, animals, plants, terrain, water,
-//              landmarks, buildings, vehicles); each object registers its own animation CSS
+//              landmarks, buildings, street, vehicles); each object registers its own animation CSS
 //   regions/   one file per region: palettes per style, the landmark layer, scene()
 //
 // Contract with check.mjs (the QA harness); keep it when editing:
@@ -15,6 +15,8 @@
 //   - region.landmark names the layer holding the hero landmark.
 //   - the root <svg> carries data-horizon and data-landmark; the sky rect is data-layer="sky".
 //   - the reduced-motion block stays last in <style>.
+//   - surfaces carry data-surface="ground|water"; things that stand on one carry data-rests="ground|water"
+//     (the support check). Objects tag themselves; an untagged SVG gets that check skipped.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -25,9 +27,10 @@ import { STYLES } from './lib/styles.mjs';
 import { previewPage } from './lib/preview.mjs';
 import { REGIONS } from './regions/index.mjs';
 
-export function render(regionName, styleName, formatName, seed = 7) {
-  const region = REGIONS[regionName], fmt = FORMATS[formatName];
-  if (!region) throw new Error(`unknown region "${regionName}" (have: ${Object.keys(REGIONS).join(', ')})`);
+// regions defaults to REGIONS; the harness self-test passes its own known-bad fixture scenes.
+export function render(regionName, styleName, formatName, seed = 7, regions = REGIONS) {
+  const region = regions[regionName], fmt = FORMATS[formatName];
+  if (!region) throw new Error(`unknown region "${regionName}" (have: ${Object.keys(regions).join(', ')})`);
   if (!fmt) throw new Error(`unknown format "${formatName}" (have: ${Object.keys(FORMATS).join(', ')})`);
   const p = region.palettes[styleName];
   if (!p || !STYLES[styleName]) throw new Error(`style "${styleName}" not defined for ${regionName}`);

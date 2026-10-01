@@ -50,9 +50,11 @@ node scripts/check.mjs --out qa                   # must exit 0 for ALL variants
 6. **Palettes:** every key an object reads must exist in every palette of every region that uses that
    object. Avoid colours near `#ff00ff` and `#00ffff` (see the [harness limitations](qa-harness.md#known-limitations)).
    Keep adjacent layers clearly different in value, or they read as one.
-7. **Mobile:** branch on `m`. Use fewer elements, more sky, foreground pushed to the edges, and the landmark
+7. **Water needs banks.** Waterfront buildings stand on a bank (`riverWall` at the horizon, drawn after
+   the water); roads run along a near bank (`promenade`), not across the water. The support check enforces it.
+8. **Mobile:** branch on `m`. Use fewer elements, more sky, foreground pushed to the edges, and the landmark
    within x 90–810 of the 900-wide canvas.
-8. Run the loop. Then update the `SKILL.md` "Existing objects" list, the README gallery if you add
+9. Run the loop. Then update the `SKILL.md` "Existing objects" list, the README gallery if you add
    examples, and [api-reference.md](api-reference.md).
 
 ## Add an object ("add a moose")
@@ -70,7 +72,9 @@ node scripts/check.mjs --out qa                   # must exit 0 for ALL variants
    - Transient (puff, sparkle): add `@media (prefers-reduced-motion: reduce) { .x { opacity: 0 } }` in its own block.
 5. Randomness only via `between()` / `random()`. Count your calls, because they shift everything drawn after the object.
 6. Build silhouettes from a few deliberate paths. A blob reads as nothing.
-7. Call it from a `scene()` as its own named layer (`moose: moose(ctx, …)`), then run the loop.
+7. Tag it for the support check: `data-rests="ground"` (or `"water"`) on its root element, wrapping
+   several top-level elements in one `<g>`. Use `data-surface="ground|water"` instead if things stand on it.
+8. Call it from a `scene()` as its own named layer (`moose: moose(ctx, …)`), then run the loop.
 
 ## Add a style ("retro poster style")
 
@@ -124,6 +128,9 @@ Read `qa/report.md`, then the evidence PNG and still for that variant, **before*
 | `rest-cut` | Traveller has no rest pose (path at x = 0) | Add an on-canvas `transform` attribute; clamp by its width |
 | `rest-pileup` | Copies share one rest pose | Spread rest poses deterministically across the width |
 | `frozen-transient` | Puff/flash visible when motion is off | `opacity: 0` under `prefers-reduced-motion: reduce` |
+| `wrong-support` | A building/tree/vehicle over water (no bank), or a boat over land | Add a bank (`riverWall`) under waterfront buildings, drawn after the water; move the thing onto ground; or narrow the water for that format |
+| `unsupported` | Only sky under a standing thing | Bring its base down to the surface, or put ground under it |
+| `causeway` | A strip of ground with water above and below it, along the river | Make it a bank: near bank down to the bottom edge (`promenade`), or far bank at the horizon. Bridges cross into the distance |
 | `contract` | Broken generator/harness contract | See [architecture § The harness contract](architecture.md#the-harness-contract) |
 
 Up to 3 fix rounds. If something still fails, stop and report it with the evidence paths. Never touch `LIMITS`.

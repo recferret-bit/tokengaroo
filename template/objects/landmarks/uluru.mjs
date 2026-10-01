@@ -16,5 +16,5 @@ export function uluru(ctx, cx, w, h) {
   }
   // contact shadow first, so the rock covers its upper half and only the part on the ground shows
   const shadow = `<ellipse cx="${f(cx)}" cy="${b}" rx="${f(w * 0.53)}" ry="${f(h * 0.05)}" ${s.paint(p.uluruShade)} opacity=".35"/>`;
-  return `${shadow}<path d="${d}" ${s.paint(p.uluru, { accent: true })}/>${grooves}`;
+  return `<g data-rests="ground">${shadow}<path d="${d}" ${s.paint(p.uluru, { accent: true })}/>${grooves}</g>`;
 }

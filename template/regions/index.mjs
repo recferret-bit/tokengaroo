@@ -5,5 +5,10 @@
 
 import { thailand } from './thailand.mjs';
 import { australia } from './australia.mjs';
+import { washington } from './washington.mjs';
+import { moscow } from './moscow.mjs';
+import { london } from './london.mjs';
+import { china } from './china.mjs';
+import { dublin } from './dublin.mjs';
 
-export const REGIONS = { thailand, australia };
+export const REGIONS = { thailand, australia, washington, moscow, london, china, dublin };

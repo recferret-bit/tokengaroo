@@ -26,7 +26,7 @@ export function kangaroo(ctx, y, k) {
   .dust { transform-box: fill-box; transform-origin: 50% 100%; animation: dust .75s ease-out infinite }
   @media (prefers-reduced-motion: reduce) { .dust { opacity: 0 } }`);
   return `
-  <g transform="translate(0 ${f(y)})"><g class="roo-run" transform="translate(${f(W * 0.55)} 0)"><g transform="scale(${f(k)})">
+  <g data-rests="ground" transform="translate(0 ${f(y)})"><g class="roo-run" transform="translate(${f(W * 0.55)} 0)"><g transform="scale(${f(k)})">
   <g class="dust">
     <circle cx="2" cy="-4" r="6" ${s.paint(p.dust)}/>
     <circle cx="14" cy="-7" r="8" ${s.paint(p.dust)}/>

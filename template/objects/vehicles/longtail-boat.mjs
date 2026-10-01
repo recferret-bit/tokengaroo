@@ -9,7 +9,7 @@ export function longtailBoat(ctx, x, y, k) {
   @keyframes bob { 0%,100% { transform: translateY(0) rotate(0) } 50% { transform: translateY(6px) rotate(1.5deg) } }
   .boat { transform-box: fill-box; transform-origin: center; animation: bob 4s ease-in-out infinite }`);
   return `
-  <g transform="translate(${f(x)} ${f(y)}) scale(${f(k)})">
+  <g data-rests="water" transform="translate(${f(x)} ${f(y)}) scale(${f(k)})">
     <g class="boat">
       <path d="M-100,-6 Q-10,26 110,-14 L124,-34 Q60,4 -100,-14 Z" ${s.paint(p.boat)}/>
       <path d="M-40,-14 L-40,-46 L40,-50 L40,-10" ${s.line(p.boat, 3)}/>

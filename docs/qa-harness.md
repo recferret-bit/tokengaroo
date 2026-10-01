@@ -1,7 +1,7 @@
 # QA harness: `scripts/check.mjs`
 
 A single-file, zero-dependency harness. It imports the generator, renders every variant, loads it into
-headless Chrome over the DevTools protocol (CDP), and runs three visual-artifact checks. Each check
+headless Chrome over the DevTools protocol (CDP), and runs four visual-artifact checks. Each check
 exists because the artifact really happened while the first two regions were built.
 
 ## CLI
@@ -30,6 +30,7 @@ Exit codes: `0` everything passes · `1` findings · `2` harness error (no Chrom
 <out>/img/<variant>.still.png   real frame at --still ms (normal motion)
 <out>/img/<variant>.grounding.png         evidence, only if grounding failed
 <out>/img/<variant>.landmark.png          evidence, only if landmark failed
+<out>/img/<variant>.support.png           evidence (surface map), only if support failed
 <out>/img/<variant>.motion-seam-<n>.png   up to 3 seam frames, element boxed
 <out>/img/<variant>.motion-rest.png       reduced-motion still with offending elements boxed
 ```
@@ -46,7 +47,8 @@ Exit codes: `0` everything passes · `1` findings · `2` harness error (no Chrom
     "checks": {
       "grounding": { "status": "pass|fail", "findings": [{ "kind", "message", "hint" }], "metrics": { "skyLeakPx", "floatingShare" }, "evidence": [] },
       "landmark":  { "status", "findings", "metrics": { "visible", "covered", "cropped", "safe", "culprits": [{ "layer", "share" }] }, "evidence": [] },
-      "motion":    { "status", "findings", "metrics": { "animations" }, "evidence": [] }
+      "motion":    { "status", "findings", "metrics": { "animations" }, "evidence": [] },
+      "support":   { "status": "pass|fail|skip", "note"?, "findings", "metrics": { "resters", "causewayShare" }, "evidence": [] }
     }
   }]
 }
@@ -66,7 +68,7 @@ sequenceDiagram
   H->>C: Runtime.evaluate(pageLib.toString()) → window.__qa
   loop every variant
     H->>H: svg = gen.render(region, style, format, seed)
-    H->>C: __qa.grounding(svg) / __qa.landmark(svg, screens)   (static rasters)
+    H->>C: __qa.grounding(svg) / __qa.landmark(svg, screens) / __qa.support(svg)   (static rasters)
     H->>C: emulate prefers-reduced-motion: no-preference
     H->>C: __qa.motion(svg) → seams + per-element stats
     H->>C: freeze(t) + captureScreenshot (seam evidence, still)
@@ -130,6 +132,52 @@ later layer hidden in turn.
 
 Findings on descendants of an already-reported element are suppressed.
 
+### 4. support (static rasters, animations off)
+
+Needs the generator to tag surfaces (`data-surface="ground|water"`) and the things that stand on them
+(`data-rests="ground|water"`, on the object's root element). An SVG with no `data-surface` at all gets
+`status: "skip"`, so older project copies still run.
+
+- **Surface map:** one raster with everything hidden except tagged surfaces, ground painted green
+  `#00ff00` and water blue `#0000ff` in draw order (a bank drawn after the water wins), sky magenta.
+- **Footprints:** each `data-rests` element's rest box comes from a live mount with animations off.
+  Elements whose columns don't overlap share one raster (painted cyan, everything else hidden). Its
+  footprint is the lowest pixel per column, kept only within `footBand` (6 px) of its very lowest. A
+  tree is judged by its trunk, not by a crown overhanging the water. What it stands on is the surface
+  3 px under the footprint. An element whose base runs off the bottom edge, or that mostly stands on
+  untagged things (a rock), is not judged.
+
+| Kind | Rule |
+|---|---|
+| `wrong-support` | More than `supportShare` (25 %) of the footprint is over the other surface: water under a `ground` rester, or ground under a `water` one |
+| `unsupported` | More than 25 % of the footprint has only sky under it |
+| `causeway` | In more than `causewayWidth` (50 %) of the columns, a run of ground has water directly above it and directly below it (untagged gaps up to 8 % of H are skipped, e.g. a parapet), and it doesn't run down to the bottom edge. That's a road or bank floating in the water, running along it |
+
+Findings are grouped per layer and element type (`2 × westminster › g`).
+
+## Self-test: `scripts/selftest.mjs`
+
+```sh
+node scripts/selftest.mjs     # exit 0 = every fixture caught as expected, 1 = something slipped through
+```
+
+`scripts/fixtures/generate.mjs` is a generator (same `render`/`variants` shape) whose regions are
+known-bad scenes. Each declares `expect`, the finding kinds every variant must produce. A fixture with
+`expect: []` is a control that must come out clean. `render()` takes an optional `regions` map, so the
+fixtures don't have to be in the real `REGIONS`.
+
+| Fixture | Reproduces | Must report |
+|---|---|---|
+| `old-london` | London's first layout: full-width bridge along the Thames, palace and Eye standing in the river | `wrong-support`, `causeway` |
+| `tree-in-pool` | Washington's first layout: a cherry trunk inside the reflecting pool | `wrong-support` |
+| `boat-on-land` | a long-tail boat on a plain | `wrong-support` |
+| `floating-rock` | Uluru with no ground at all | `sky-leak`, `floating` |
+| `london` | the shipped London (control) | nothing |
+
+Run it after any change to `check.mjs`, and when you find a new artifact by eye, add a fixture for it.
+A check that only ever passes proves nothing. Mutation-tested: raising `causewayWidth` past 1 makes
+the self-test fail on `old-london`.
+
 ## Limits
 
 ```js
@@ -137,6 +185,7 @@ const LIMITS = {
   skyLeakRows: 2, floatColumns: 0.02, landmarkVisible: 0.85,
   popPx: 4, popOpacity: 0.3, transientMeanOpacity: 0.35,
   edgeCut: 0.1, travel: 0.5, windowMs: 60000,
+  footBand: 6, supportShare: 0.25, causewayWidth: 0.5,
 };
 ```
 
@@ -151,6 +200,7 @@ const LIMITS = {
 | `*.landmark.png` | landmark cyan, red boxes = what covers it, dashed black box = safe area |
 | `*.motion-seam-N.png` | real frame 1 ms after the jump, red box = the element |
 | `*.motion-rest.png` | reduced-motion still, red boxes = offending elements |
+| `*.support.png` | surface map: ground green, water blue, sky magenta, everything else hidden; red boxes = bad footprints or the floating strip |
 
 ## Known limitations
 
@@ -159,6 +209,10 @@ const LIMITS = {
   sky leak. One close to `#00ffff` (tropical water, glacier ice) inside the safe area can inflate the
   landmark's visible share. Check new palettes against both.
 - **Hero landmark only.** Secondary motifs (the kangaroo, the boat) are not checked for being covered or cropped.
+- **Support needs tags.** Untagged objects aren't judged: sky things, `karst` rocks (they rise out of land or sea alike),
+  and any project object nobody tagged. On long sloped things (the Great Wall) only the part near the lowest point counts as the footprint.
+- **Stills are not byte-stable.** The same SVG can give slightly different `still.png` bytes from run to run, so compare
+  SVG output (drawing outside `<style>`), not stills, to prove a refactor changed nothing.
 - **One seed.** Only `--seed` (default 7) is checked. Other seeds can produce layouts that fail.
 - **Meaning is out of scope.** The checks can't tell whether a shape reads as what it is meant to be.
   Always look at the stills.
@@ -172,5 +226,5 @@ const LIMITS = {
 2. Add a `HINTS[kind]` entry. It is the fix advice printed in `report.md` and is what Claude acts on.
 3. If it needs evidence, capture it in `checkVariant()` and describe its colours in `EVIDENCE`.
 4. Add a threshold to `LIMITS` instead of inlining a magic number.
-5. Document it in `SKILL.md` § The three checks, `README.md` § The QA harness, and this file.
-6. Prove it: make a variant that should fail, see the finding and evidence, then revert and confirm all pass.
+5. Document it in `SKILL.md` § The four checks, `README.md` § The QA harness, and this file.
+6. Prove it with a fixture in `scripts/fixtures/generate.mjs` that must trigger it, and run `node scripts/selftest.mjs`.

@@ -19,14 +19,18 @@ Three moving parts:
 |---|---|---|
 | Skill instructions | `SKILL.md` | What Claude follows **at runtime** when the skill triggers in a user's project |
 | Generator | `template/` | Pure-JS SVG generator; the skill copies it into a user's project on first use |
-| QA harness | `scripts/check.mjs` | Headless Chrome over CDP; three checks; `report.md` + evidence PNGs |
+| QA harness | `scripts/check.mjs` | Headless Chrome over CDP; four checks; `report.md` + evidence PNGs |
+| Harness self-test | `scripts/selftest.mjs`, `scripts/fixtures/` | Known-bad scenes the harness must flag, plus a clean control |
 
 ## Two modes: know which one you are in
 
 1. **Developing the skill (this repo).** `template/` **is the source**. Edit it directly, regenerate
    `examples/`, run the harness. This is what this file is about.
 2. **Using the skill on someone's project.** Follow `SKILL.md`: work on the project's *copy* of
-   `template/`, never on this one.
+   `template/`, never on this one. The one exception: once QA passes, brand-new object files are
+   copied back into this repo's `template/objects/` and listed in `SKILL.md` and
+   `docs/api-reference.md` (`SKILL.md` workflow step 7). They arrive uncommitted. Review them
+   against the hard rules below before committing.
 
 `~/.claude/skills/tokengaroo` is (on the maintainer's machine) a **symlink to this repo**. Every edit to
 `SKILL.md`, `template/` or `scripts/` is live in every Claude Code session immediately. Don't leave
@@ -65,7 +69,7 @@ template/
   lib/styles.mjs                 flat / line painters: s.paint(), s.line(), s.sky, s.water
   lib/css.mjs                    useCss(): objects register their own keyframes once
   lib/preview.mjs                index.html side-by-side preview page
-  objects/<kind>/<name>.mjs      one drawable per file (sky, animals, plants, terrain, water, landmarks, buildings, vehicles)
+  objects/<kind>/<name>.mjs      one drawable per file (sky, animals, plants, terrain, water, landmarks, buildings, street, vehicles)
   regions/<name>.mjs             one region per file: palettes per style, landmark layer name, scene(ctx)
   regions/index.mjs              REGIONS registry
 examples/                        committed output of `generate.mjs --all --out examples` (seed 7)
@@ -103,6 +107,9 @@ For any change to `template/` or `scripts/`:
 5. New object or region? Update the "Existing objects" list in `SKILL.md`, the README if user-visible,
    and [`docs/api-reference.md`](docs/api-reference.md).
 6. Changed the contract, a check or a limit? Update `SKILL.md`, `README.md` and [`docs/qa-harness.md`](docs/qa-harness.md) together.
+7. Changed `check.mjs`, or an object the fixtures use? `node scripts/selftest.mjs` must exit `0`. Found a new
+   kind of artifact by eye? Add a fixture reproducing it, so the harness is proven to catch it from then on.
+8. New object? Tag it for the support check (`data-surface` / `data-rests`, see `SKILL.md` § Contract).
 
 ## Gotchas
 

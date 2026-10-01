@@ -4,11 +4,14 @@
 //   node check.mjs                                     # every variant of ../template/generate.mjs
 //   node check.mjs --gen ./generate.mjs --out ./qa --only australia
 //
-// Three checks per variant (region x style x format):
+// Four checks per variant (region x style x format):
 //   1. grounding  sky visible below the horizon; a landmark with sky under its base (it floats)
 //   2. landmark   the hero landmark covered by later layers, or cropped on the target screen shapes
 //   3. motion     loops that jump or flash at their seam while on canvas; a reduced-motion still
 //                 with elements cut by the canvas edge, piled up on one spot, or frozen mid-effect
+//   4. support    things that stand (data-rests="ground|water") standing on the wrong surface
+//                 (data-surface="ground|water") or on nothing; a strip of ground floating in the
+//                 water, parallel to the banks (a "causeway"). Skipped when nothing is tagged.
 //
 // Writes <out>/report.md (start here), report.json, svg/<variant>.svg, img/<variant>.still.png
 // (a mid-animation frame to look at) and img/<variant>.<check>.png evidence for every failing check.
@@ -43,6 +46,9 @@ const LIMITS = {
   edgeCut: 0.1,               // at least this share inside AND outside the canvas = cut by the edge
   travel: 0.5,                // moves more than this share of W per cycle = a travelling element
   windowMs: 60000,            // timeline span searched for loop seams
+  footBand: 6,                // px above an element's lowest pixel that still count as its footprint
+  supportShare: 0.25,         // share of a footprint allowed over the wrong surface (or over sky)
+  causewayWidth: 0.5,         // share of the width a ground strip with water above and below may span
 };
 
 // Screen shapes each format must survive under preserveAspectRatio="xMidYMid slice" (width / height).
@@ -62,12 +68,16 @@ const HINTS = {
   'rest-cut': 'With reduced motion the element rests cut by the canvas edge (its path starts at x = 0 and the animation is what moves it). Give the animated element an on-canvas transform attribute as its rest pose; a running CSS animation overrides the attribute, so normal motion is unchanged.',
   'rest-pileup': 'With reduced motion several copies rest on the same spot. Give each copy its own transform attribute as a rest pose, spread across the canvas.',
   'frozen-transient': 'The element is only briefly visible while animated (a puff, flash, sparkle) but sits fully opaque in the reduced-motion still. Hide it in a reduced-motion block (opacity: 0).',
+  'wrong-support': 'The element stands on the wrong kind of surface: a building, tree or land vehicle with water under its base (it stands in the river or pool), or a boat on land. Give it land: a bank or embankment (data-surface="ground") under its base, drawn after the water; or move it onto existing ground, or move or narrow the water for this format. If it really stands in water (a pier, a stilt house), tag it data-rests="water".',
+  'unsupported': 'Only sky is under the element\'s base, so it floats. Extend its base down onto the surface (HORIZON + 4 for things on the horizon), or put ground under it.',
+  'causeway': 'A strip of ground has water directly above and below it across most of the width, so it reads as a road or bank floating in the river, running along it. Make it a real bank: run it down to the bottom edge (the near bank) or up to the horizon (the far bank). A bridge should cross the water into the distance, not run along it.',
 };
 
 const EVIDENCE = {
   grounding: 'sky painted magenta, landmark cyan, red box = problem area',
   landmark: 'landmark painted cyan, red boxes = what covers it, dashed box = area every target screen shows',
   motion: 'real frame (seams: just after the jump; rest: reduced-motion still), red box = the element',
+  support: 'surface map: ground green, water blue, sky magenta, everything else hidden; red box = the footprint or the floating strip',
 };
 
 // --- chrome over the devtools protocol --------------------------------------
@@ -150,8 +160,9 @@ function pageLib(LIM) {
 
   // --- static rasters (checks 1 and 2) ---
 
-  async function raster(m, css = '') {
+  async function raster(m, css = '', mutate = null) {
     const root = m.root.cloneNode(true);
+    if (mutate) mutate(root);
     root.setAttribute('width', m.w);
     root.setAttribute('height', m.h);
     const style = document.createElementNS(SVGNS, 'style');
@@ -283,6 +294,121 @@ function pageLib(LIM) {
     };
   }
 
+  // 4. support
+  // Surfaces are tagged data-surface="ground|water"; things that stand, data-rests="ground|water".
+  // The surface map paints every tagged surface in its own colour (draw order kept, so a bank drawn
+  // over the water wins) and hides everything else. An element's footprint is its lowest pixels
+  // (within footBand of its very lowest, so a tree is judged by its trunk, not its overhanging crown);
+  // the surface 3 px under the footprint is what it stands on.
+  const GROUND = [0, 255, 0], WATER = [0, 0, 255];
+  const HIDE = '[data-layer], [data-layer] * { visibility: hidden !important }';
+  async function support(svgText) {
+    const m = parse(svgText);
+    if (!m.root.querySelector('[data-surface]')) return { skip: 'no data-surface tags in this SVG', findings: [] };
+    const surf = await raster(m, HIDE
+      + `[data-layer="sky"] { visibility: visible !important; fill: ${hex(SKY)} !important }`
+      + '[data-surface], [data-surface] * { visibility: visible !important; opacity: 1 !important }'
+      + `[data-surface="ground"], [data-surface="ground"] * { fill: ${hex(GROUND)} !important; stroke: ${hex(GROUND)} !important }`
+      + `[data-surface="water"], [data-surface="water"] * { fill: ${hex(WATER)} !important; stroke: ${hex(WATER)} !important }`
+      + '[data-surface] [fill="none"] { fill: none !important }');
+    const kindAt = (x, y) => {
+      if (x < 0 || y < 0 || x >= m.w || y >= m.h) return 'edge';
+      const i = at(m, x, y);
+      return near(surf.px, i, GROUND) ? 'ground' : near(surf.px, i, WATER) ? 'water' : near(surf.px, i, SKY) ? 'sky' : 'none';
+    };
+    const findings = [], boxes = [];
+
+    // where every standing element is at rest
+    const resters = [...m.root.querySelectorAll('[data-rests]')];
+    const probe = document.importNode(m.root, true);
+    probe.setAttribute('width', m.w);
+    probe.setAttribute('height', m.h);
+    probe.style.cssText = 'position:absolute;left:0;top:0';
+    const still = document.createElementNS(SVGNS, 'style');
+    still.textContent = '* { animation: none !important; transition: none !important }';
+    probe.appendChild(still);
+    document.body.style.margin = '0';
+    document.body.replaceChildren(probe);
+    const rects = [...probe.querySelectorAll('[data-rests]')].map(rectOf);
+    probe.remove();
+
+    // pack elements whose columns don't overlap into one raster each
+    const items = resters.map((el, i) => ({ i, el, want: el.getAttribute('data-rests'), b: rects[i], label: labelOf(el) }))
+      .filter((it) => it.b.x1 > 0 && it.b.x0 < m.w && it.b.y1 > 0 && it.b.y0 < m.h)
+      .sort((a, b) => a.b.x0 - b.b.x0);
+    const batches = [];
+    for (const it of items) {
+      const bt = batches.find((bt) => bt.end + 8 < it.b.x0);
+      if (bt) { bt.items.push(it); bt.end = it.b.x1; } else batches.push({ end: it.b.x1, items: [it] });
+    }
+    const groups = new Map();
+    for (const bt of batches) {
+      const r = await raster(m, HIDE
+        + `[data-qa-target], [data-qa-target] * { visibility: visible !important; fill: ${hex(MARK)} !important; stroke: ${hex(MARK)} !important; opacity: 1 !important }`
+        + '[data-qa-target] [fill="none"] { fill: none !important }',
+        (root) => { const all = root.querySelectorAll('[data-rests]'); for (const it of bt.items) all[it.i].setAttribute('data-qa-target', ''); });
+      for (const it of bt.items) {
+        const low = [];
+        let maxY = -1;
+        for (let x = Math.max(0, Math.floor(it.b.x0) - 4); x < Math.min(m.w, Math.ceil(it.b.x1) + 4); x++) {
+          let y = m.h - 1;
+          while (y >= 0 && !near(r.px, at(m, x, y), MARK)) y--;
+          if (y >= 0) { low.push([x, y]); maxY = Math.max(maxY, y); }
+        }
+        if (maxY < 0 || maxY >= m.h - 4) continue; // paints nothing, or its base runs off the bottom edge
+        const feet = low.filter(([, y]) => y >= maxY - LIM.footBand);
+        const n = { ground: 0, water: 0, sky: 0, none: 0, edge: 0 };
+        for (const [x, y] of feet) n[kindAt(x, y + 3)]++;
+        if ((n.ground + n.water + n.sky) / feet.length < 0.5) continue; // mostly on untagged things (a rock): not judged
+        const wrongOn = it.want === 'water' ? 'ground' : 'water';
+        const kind = n.sky / feet.length > LIM.supportShare ? 'unsupported' : n[wrongOn] / feet.length > LIM.supportShare ? 'wrong-support' : null;
+        if (!kind) continue;
+        const fb = box();
+        for (const [x, y] of feet) { grow(fb, x, y); grow(fb, x, y + 6); }
+        const key = `${kind}|${it.label}`;
+        const g = groups.get(key) ?? { kind, label: it.label, want: it.want, on: kind === 'unsupported' ? 'sky' : wrongOn, items: [], share: 0 };
+        g.items.push(done(fb));
+        g.share = Math.max(g.share, n[g.on] / feet.length);
+        groups.set(key, g);
+      }
+    }
+    for (const g of groups.values()) {
+      const b = { x0: Math.min(...g.items.map((b) => b.x0)), y0: Math.min(...g.items.map((b) => b.y0)), x1: Math.max(...g.items.map((b) => b.x1)), y1: Math.max(...g.items.map((b) => b.y1)) };
+      boxes.push(...g.items.map((b) => ({ x0: b.x0 - 12, y0: b.y0 - 12, x1: b.x1 + 12, y1: b.y1 + 12 })));
+      const who = `${g.items.length > 1 ? `${g.items.length} × ` : ''}${g.label}`;
+      findings.push({
+        kind: g.kind, box: b,
+        message: g.kind === 'unsupported'
+          ? `${who} has only sky under ${pct(g.share)} of its footprint (${round(b)})`
+          : `${who} stands on ${g.on} in ${pct(g.share)} of its footprint but should stand on ${g.want} (${round(b)})`,
+      });
+    }
+
+    // a ground strip with water right above and right below it, over much of the width
+    const gap = Math.round(m.h * 0.08);
+    const look = (x, from, step) => {
+      for (let y = from, i = 0; y >= 0 && y < m.h && i < gap; y += step, i++) { const k = kindAt(x, y); if (k !== 'none') return k; }
+      return 'none';
+    };
+    let cols = 0;
+    const cw = box();
+    for (let x = 0; x < m.w; x++) {
+      for (let y = 0; y < m.h;) {
+        if (kindAt(x, y) !== 'ground') { y++; continue; }
+        const y0 = y;
+        while (y < m.h && kindAt(x, y) === 'ground') y++;
+        if (y >= m.h) break; // runs down to the bottom edge: a near bank
+        if (look(x, y0 - 1, -1) === 'water' && look(x, y, 1) === 'water') { cols++; grow(cw, x, y0); grow(cw, x, y - 1); break; }
+      }
+    }
+    if (cols / m.w > LIM.causewayWidth) {
+      const b = done(cw);
+      boxes.push(b);
+      findings.push({ kind: 'causeway', message: `a strip of ground (${round(b)}) has water right above and below it across ${pct(cols / m.w)} of the width: it reads as land floating in the water`, box: b });
+    }
+    return { findings, metrics: { resters: items.length, causewayShare: cols / m.w }, image: findings.length ? annotate(surf, boxes) : null };
+  }
+
   // --- live document (check 3) ---
 
   let live = null;
@@ -409,7 +535,7 @@ function pageLib(LIM) {
   }
   function clearOverlay() { document.querySelectorAll('.__qa_box').forEach((d) => d.remove()); }
 
-  return { grounding, landmark, motion, freeze, rest, overlay, clearOverlay };
+  return { grounding, landmark, support, motion, freeze, rest, overlay, clearOverlay };
 }
 
 // --- driver -----------------------------------------------------------------
@@ -431,6 +557,8 @@ async function checkVariant(v, svg, page, call) {
   const landmark = await call('landmark', svg, screens);
   if (grounding.image) grounding.evidence = save(grounding.image, `${v.name}.grounding.png`);
   if (landmark.image) landmark.evidence = save(landmark.image, `${v.name}.landmark.png`);
+  const support = await call('support', svg);
+  if (support.image) support.evidence = save(support.image, `${v.name}.support.png`);
 
   await page('Emulation.setDeviceMetricsOverride', { width: size.w, height: size.h, deviceScaleFactor: 1, mobile: false });
   await page('Emulation.setEmulatedMedia', { media: '', features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
@@ -455,6 +583,7 @@ async function checkVariant(v, svg, page, call) {
   await page('Emulation.setEmulatedMedia', { media: '', features: [] });
 
   const finish = (r) => {
+    if (r.skip) return { status: 'skip', note: r.skip, findings: [], metrics: {}, evidence: [] };
     const findings = r.findings.map(({ kind, message }) => ({ kind, message, hint: HINTS[kind] }));
     return { status: findings.length ? 'fail' : 'pass', findings, metrics: r.metrics ?? {}, evidence: r.evidence ? [r.evidence] : [] };
   };
@@ -465,6 +594,7 @@ async function checkVariant(v, svg, page, call) {
       grounding: finish(grounding),
       landmark: finish(landmark),
       motion: { ...finish({ findings: [...motion.findings, ...rest.findings] }), metrics: { animations: motion.animations }, evidence },
+      support: finish(support),
     },
   };
 }
@@ -473,10 +603,10 @@ const pct = (x) => `${Math.round(x * 100)}%`;
 
 function reportMd(results) {
   const failing = results.filter((r) => Object.values(r.checks).some((c) => c.status === 'fail'));
-  const cell = (c, extra = '') => `${c.status === 'pass' ? '✅' : `❌ ${c.findings.length}`}${extra}`;
+  const cell = (c, extra = '') => (c.status === 'skip' ? '⚪ skipped' : `${c.status === 'pass' ? '✅' : `❌ ${c.findings.length}`}${extra}`);
   const rows = results.map((r) => {
     const lm = r.checks.landmark.metrics.visible;
-    return `| ${r.name} | ${cell(r.checks.grounding)} | ${cell(r.checks.landmark, lm === undefined ? '' : ` · ${pct(lm)} visible`)} | ${cell(r.checks.motion, ` · ${r.checks.motion.metrics.animations} anims`)} | [still](${r.still}) |`;
+    return `| ${r.name} | ${cell(r.checks.grounding)} | ${cell(r.checks.landmark, lm === undefined ? '' : ` · ${pct(lm)} visible`)} | ${cell(r.checks.motion, ` · ${r.checks.motion.metrics.animations} anims`)} | ${cell(r.checks.support)} | [still](${r.still}) |`;
   });
   const details = failing.map((r) => {
     const parts = Object.entries(r.checks).filter(([, c]) => c.status === 'fail').map(([name, c]) => [
@@ -491,8 +621,8 @@ function reportMd(results) {
     '',
     `Generator \`${GEN}\` · seed ${SEED} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
     '',
-    '| variant | 1 grounding | 2 landmark | 3 motion | frame |',
-    '|---|---|---|---|---|',
+    '| variant | 1 grounding | 2 landmark | 3 motion | 4 support | frame |',
+    '|---|---|---|---|---|---|',
     ...rows,
     '',
     ...details,
@@ -534,7 +664,7 @@ async function main() {
       writeFileSync(join(OUT, 'svg', `${v.name}.svg`), svg);
       const r = await checkVariant(v, svg, page, call);
       results.push(r);
-      const line = Object.entries(r.checks).map(([k, c]) => `${k} ${c.status === 'pass' ? 'ok' : `FAIL(${c.findings.length})`}`).join('  ');
+      const line = Object.entries(r.checks).map(([k, c]) => `${k} ${c.status === 'fail' ? `FAIL(${c.findings.length})` : c.status === 'skip' ? 'skip' : 'ok'}`).join('  ');
       console.error(`${v.name.padEnd(28)} ${line}`);
     }
     browser.close();

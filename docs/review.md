@@ -65,6 +65,16 @@ Severity: **High** = can lose data or silently mislead · **Medium** = will bite
 15. **`render()` is not re-entrant** (module-level canvas and RNG state). That's fine for the CLI and
     harness, but a future server or parallel use must render sequentially or in separate processes. This is documented in `AGENTS.md`.
 
+### Follow-up (same day)
+
+16. **Fixed by the support check:** London's first layout (a full-width bridge along the Thames,
+    buildings standing in the river) passed all three original checks. A fourth check (`support`) now
+    flags things standing on the wrong surface and land floating in water. It immediately found a
+    second, unnoticed case: Washington's left cherry tree stood inside the reflecting pool. Both are
+    reproduced as fixtures in `scripts/selftest.mjs`.
+17. **Stills vary between identical runs** (a few `still.png` files differ byte-wise). Harmless for QA,
+    but stills can't prove a refactor changed nothing. Compare SVG output instead.
+
 ## Strengths worth keeping
 
 - **Contract-first design.** The `data-layer`/`data-horizon`/`data-landmark` contract lets a generic

@@ -6,7 +6,7 @@ export function chedi(ctx, x, y, k) {
   const { s, p } = ctx;
   const c = p.temple;
   return `
-  <g transform="translate(${f(x)} ${f(y)}) scale(${f(k)})">
+  <g data-rests="ground" transform="translate(${f(x)} ${f(y)}) scale(${f(k)})">
     <rect x="-60" y="-16" width="120" height="16" ${s.paint(c)}/>
     <rect x="-45" y="-32" width="90" height="16" ${s.paint(c)}/>
     <rect x="-32" y="-46" width="64" height="14" ${s.paint(c)}/>

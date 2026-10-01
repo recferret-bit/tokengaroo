@@ -41,7 +41,7 @@ export const thailand = {
       glints: sunGlints(ctx, sunX),
       boat: longtailBoat(ctx, W * 0.5, HORIZON + (H - HORIZON) * 0.6, k),
       // one-off foreground sand bar for the palms, bottom right
-      beach: `<path d="M${f(beachX)},${H} C${f(beachX + 140 * k)},${f(H - 70 * k)} ${f(W - 150 * k)},${f(H - 90 * k)} ${W},${f(H - 100 * k)} L${W},${H} Z" ${ctx.s.paint(p.palm)}/>`,
+      beach: `<path data-surface="ground" d="M${f(beachX)},${H} C${f(beachX + 140 * k)},${f(H - 70 * k)} ${f(W - 150 * k)},${f(H - 90 * k)} ${W},${f(H - 100 * k)} L${W},${H} Z" ${ctx.s.paint(p.palm)}/>`,
       palms: palm(ctx, W - (m ? 130 : 230) * k, H - 70 * k, 360 * k, (m ? -50 : -90) * k)
         + palm(ctx, W - (m ? 40 : 120) * k, H - 85 * k, 280 * k, -40 * k),
     };
