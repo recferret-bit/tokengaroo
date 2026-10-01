@@ -76,3 +76,9 @@ examples/                   output of template/generate.mjs --all
 
 Adding a region is one file in `regions/` plus any new objects it needs; see `SKILL.md` for the
 object and region templates.
+
+## Docs
+
+For contributors and AI agents: [`AGENTS.md`](AGENTS.md) (repo contract) ·
+[architecture](docs/architecture.md) · [API reference](docs/api-reference.md) ·
+[QA harness](docs/qa-harness.md) · [cookbook](docs/cookbook.md) · [review](docs/review.md).
