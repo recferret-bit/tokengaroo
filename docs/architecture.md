@@ -10,13 +10,15 @@ flowchart LR
   C --> G[generate.mjs<br/>render / variants]
   G -->|--all| D["dist/*.svg<br/>+ index.html"]
   G -->|import render, variants| H[scripts/check.mjs]
+  G -->|import render, variants| GIF[scripts/gif.mjs]
   H -->|CDP| CH[(headless Chrome)]
+  GIF -->|CDP + LZW| GOUT["dist/*.gif<br/>(desktop & mobile)"]
   CH --> R["qa/report.md, report.json<br/>img/*.png evidence + stills"]
   R -->|fix loop ≤ 3 rounds| C
 ```
 
 The generator is code, not a model: Claude translates intent into JS objects and scenes. The harness
-imports the generator module directly (not its CLI output), so it always checks exactly what `render()` produces.
+and the GIF converter import the generator module directly (not its CLI output), so they always work with exactly what `render()` produces.
 
 ## Module graph
 
@@ -167,3 +169,14 @@ What `scripts/check.mjs` relies on. Break any of these and it reports `contract`
 - Output is 13–24 KB per variant today (Washington flat mobile is the smallest, Australia line desktop the largest).
 - Biggest contributors: `water()` (22 wave lines), `ghostGum()` (15 ellipses), `spinifexField()` (one path per tuft).
 - Rendering is instant. A full harness run over 8 variants takes about 2 s on a laptop.
+
+## GIF export pipeline (`scripts/gif.mjs`)
+
+The GIF conversion pipeline turns animated vector SVGs into animated GIF loops (both desktop and mobile) with zero dependencies:
+
+1. **Headless Chrome via CDP**: Launches local Chrome and connects over WebSocket (same mechanism as `check.mjs`).
+2. **DOM mounting & Web Animations API**: Mounts the SVG into a full-bleed viewport and pauses all CSS animations (`document.getAnimations().forEach(a => a.pause())`).
+3. **Deterministic frame scrubbing**: Steps animation timelines forward at `1000 / fps` ms intervals (`a.currentTime = t`), avoiding dropped frames or timing jitter.
+4. **Screenshot capture & PNG decode**: Captures downscaled screenshots via `Page.captureScreenshot` (PNG), decoded with standard inflator and Paeth scanline filtering.
+5. **Fast color quantization**: Employs median-cut partitioning with a pre-mapped unique color lookup cache to generate 256-color palettes in milliseconds.
+6. **LZW & GIF89a assembly**: Encodes indexed frames with standard variable-length LZW compression and Netscape 2.0 looping extensions for infinite playback.

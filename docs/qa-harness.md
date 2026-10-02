@@ -228,3 +228,8 @@ const LIMITS = {
 4. Add a threshold to `LIMITS` instead of inlining a magic number.
 5. Document it in `SKILL.md` § The four checks, `README.md` § The QA harness, and this file.
 6. Prove it with a fixture in `scripts/fixtures/generate.mjs` that must trigger it, and run `node scripts/selftest.mjs`.
+
+## Related scripts
+
+- `scripts/selftest.mjs`: Automated test of the QA harness against known-bad scenes.
+- `scripts/gif.mjs`: Converts generated SVG animations into looping GIFs (both desktop and mobile) via headless Chrome CDP.

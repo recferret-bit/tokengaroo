@@ -1,6 +1,6 @@
 ---
 name: tokengaroo
-description: Generate and QA animated, geometric SVG backgrounds for travel-site regions (Thailand, Australia, Canada, ...) from a plain-language prompt, in desktop 16:9 and mobile 9:16, flat or line style. Ships the generator and a headless-Chrome harness that runs four visual-artifact checks (grounding, landmark visibility, motion integrity, support: nothing standing in water, no land floating in it) and drives a fix loop. Use when asked to create, change or fix a region background, add a region, style or format, or check the backgrounds for visual artifacts.
+description: Generate and QA animated, geometric SVG backgrounds for travel-site regions (Thailand, Australia, Canada, ...) from a plain-language prompt, in desktop 16:9 and mobile 9:16, flat or line style. Ships the generator, a headless-Chrome QA harness, and an SVG-to-GIF converter (desktop & mobile). Use when asked to create, change or fix a region background, add a region, style or format, check the backgrounds for visual artifacts, or export animations as GIF.
 ---
 
 # tokengaroo: region backgrounds
@@ -20,6 +20,7 @@ template/                     the generator project; copy this whole folder into
   regions/<name>.mjs          one region per file: palettes, landmark, scene()
   regions/index.mjs           the REGIONS list
 scripts/check.mjs             QA harness: headless Chrome over CDP, four checks, report.md + evidence PNGs
+scripts/gif.mjs               GIF converter: renders SVG animation loops into GIFs (desktop & mobile, 10s loop default, zero deps)
 ```
 
 Requirements: Node >= 22 (global WebSocket) and Chrome/Chromium (`CHROME_PATH` to override). No npm install.
@@ -38,6 +39,7 @@ Requirements: Node >= 22 (global WebSocket) and Chrome/Chromium (`CHROME_PATH` t
    | "retro poster style" | new `poster` entry in `lib/styles.mjs` + a `poster` palette in every region |
    | "night version" | a new option threaded through `render()` into `ctx`, palettes per option |
    | "the tree hides the rock" | that region's `scene()` layout for the format (`ctx.m` is true on mobile) |
+   | "convert to GIF" / "export GIF" | `node ~/.claude/skills/tokengaroo/scripts/gif.mjs --gen <project>/generate.mjs --region <name>` (renders both desktop & mobile GIFs, 10s loop by default) |
 
 3. **Build:** `node generate.mjs --all --out dist` (writes every SVG + `dist/index.html` side-by-side preview).
 4. **Run the harness** (from anywhere):
@@ -72,7 +74,8 @@ Requirements: Node >= 22 (global WebSocket) and Chrome/Chromium (`CHROME_PATH` t
      keys, animation, RNG cost) under its kind in the skill's `docs/api-reference.md`.
    - Don't commit in the skill repo. List the added files so the user can review and commit them.
 8. **Report** in plain words: what changed, the QA table, the objects saved into the skill (step 7),
-   and anything that still looks off. Offer `open dist/index.html` for the user to watch the motion.
+   and anything that still looks off. Offer `open dist/index.html` for the user to watch the motion,
+   or convert to GIF (`node ~/.claude/skills/tokengaroo/scripts/gif.mjs --gen <project>/generate.mjs --region <name>`, 10s loop by default) if animated image assets are requested.
 
 ## The four checks
 
@@ -194,6 +197,9 @@ Regions: `thailand`, `australia`, `washington` (D.C.), `moscow`, `london`, `chin
 ## Previewing tips
 
 - Real frame at time t: the harness's `qa/img/<variant>.still.png` (t = 10s, change it with `--still <ms>`).
+- Animated GIF preview (both desktop and mobile, 10s loop by default at 12 fps):
+  `node ~/.claude/skills/tokengaroo/scripts/gif.mjs --gen <project>/generate.mjs --region <name>`
+  or for an existing SVG file: `node ~/.claude/skills/tokengaroo/scripts/gif.mjs path/to/file.svg`
 - Reduced-motion still: `"<chrome>" --headless=new --force-prefers-reduced-motion --window-size=1600,900 --screenshot=out.png file:///abs/path.svg`
 - Avoid `qlmanage` for judging a design: it renders without clipping (off-canvas parts show), crops
   to a square, and does not animate.

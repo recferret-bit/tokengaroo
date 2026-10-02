@@ -20,6 +20,7 @@ Three moving parts:
 | Skill instructions | `SKILL.md` | What Claude follows **at runtime** when the skill triggers in a user's project |
 | Generator | `template/` | Pure-JS SVG generator; the skill copies it into a user's project on first use |
 | QA harness | `scripts/check.mjs` | Headless Chrome over CDP; four checks; `report.md` + evidence PNGs |
+| GIF converter | `scripts/gif.mjs` | Headless Chrome over CDP; converts animation loops to desktop & mobile GIFs |
 | Harness self-test | `scripts/selftest.mjs`, `scripts/fixtures/` | Known-bad scenes the harness must flag, plus a clean control |
 
 ## Two modes: know which one you are in
@@ -47,6 +48,8 @@ node template/generate.mjs --all --out dist              # scratch build (dist/ 
 node template/generate.mjs --region thailand --style line --format mobile --seed 7 > out.svg
 node scripts/check.mjs --out qa                          # QA every variant → qa/report.md (qa/ is gitignored)
 node scripts/check.mjs --out qa --only australia-flat    # substring filter on variant names
+node scripts/gif.mjs --region australia                  # converts both desktop and mobile to GIF
+node scripts/gif.mjs examples/london-flat-desktop.svg    # convert specific SVG to GIF
 open dist/index.html                                     # watch the motion side by side
 ```
 
@@ -62,6 +65,7 @@ or a scratch dir), never a project root.
 SKILL.md                         runtime instructions for Claude (frontmatter name/description = trigger)
 README.md                        human-facing intro, install, usage
 scripts/check.mjs                QA harness (single file, zero deps)
+scripts/gif.mjs                  SVG-to-GIF converter: desktop & mobile (single file, zero deps)
 template/
   generate.mjs                   orchestration only: render(), variants(), CLI
   lib/canvas.mjs                 W/H/HORIZON live bindings, seeded RNG (mulberry32), f(), smooth()

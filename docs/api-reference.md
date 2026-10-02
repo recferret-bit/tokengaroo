@@ -48,6 +48,18 @@ CLI flags: `--all`, `--out <dir>` (default `dist`, only with `--all`), `--region
 `--style` (default `flat`), `--format` (default `desktop`), `--seed` (default `7`).
 Without `--all` the SVG goes to stdout. Unknown flags are ignored.
 
+### `scripts/gif.mjs`
+
+| Export | Signature | Notes |
+|---|---|---|
+| `convertSvgToGif` | `(svg: string, options) → Promise<Buffer>` | Mounts SVG in CDP, scrubs timeline, encodes and returns GIF Buffer |
+| `findChrome` | `() → string \| undefined` | Discovers Chrome / Chromium path or reads `CHROME_PATH` |
+| `launchChrome` | `() → Promise<{ page, close }>` | Launches headless Chrome instance over CDP |
+
+CLI flags: `--region <name>` (converts desktop & mobile by default), `--format <desktop|mobile|both>`,
+`--style <flat|line|all>`, `--all`, `--only <substr>`, `--fps <n>` (default 12), `--duration <s>` (default 10),
+`--scale <n>` (default 0.5), `--width <px>`, `--gen <path>`, `--seed <n>`, `--out <dir|file>`. Positional args accept `.svg` file paths or directories.
+
 ## Support tags
 
 The support check reads two attributes that objects put on their own elements:

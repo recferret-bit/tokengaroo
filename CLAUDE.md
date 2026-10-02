@@ -15,5 +15,7 @@
   and `qa/`. `check.mjs` wipes its `--out` directory.
 - Reduced-motion still, when you need one outside the harness:
   `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --force-prefers-reduced-motion --window-size=1600,900 --screenshot=out.png file:///abs/path.svg`
+- Convert animation to GIF (both desktop and mobile):
+  `node scripts/gif.mjs --region <name>` (renders both desktop & mobile GIFs) or `node scripts/gif.mjs <file.svg>`
 - The parent workspace `AGENTS.md`/`AGENTS-MCP.md` (casino platform) loads too because of the directory
   hierarchy. Ignore its MCP, GitNexus, Graphiti and coding-contract rules here.

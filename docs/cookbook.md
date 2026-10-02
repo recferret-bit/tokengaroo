@@ -113,6 +113,25 @@ done
 
 The drawing outside `<style>` must be byte-identical. Preserve RNG call order.
 
+## Export animated GIF (desktop and mobile)
+
+Convert SVG animations into looping animated GIFs (defaults to a 10s loop at 12 fps):
+
+```sh
+# Convert both desktop and mobile for a region:
+node scripts/gif.mjs --region australia
+
+# In a user's project (using the skill):
+node ~/.claude/skills/tokengaroo/scripts/gif.mjs --gen <project>/generate.mjs --region canada
+
+# Convert specific format or SVG file:
+node scripts/gif.mjs --region thailand --format desktop
+node scripts/gif.mjs examples/london-flat-mobile.svg
+
+# Tune frame rate, duration, or dimensions:
+node scripts/gif.mjs --region dublin --fps 15 --duration 5 --scale 0.5
+```
+
 ## Fixing each finding
 
 Read `qa/report.md`, then the evidence PNG and still for that variant, **before** editing.

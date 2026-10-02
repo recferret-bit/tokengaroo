@@ -151,6 +151,7 @@ the QA table. New objects it draws for you (a moose, a lighthouse) are copied ba
 node template/generate.mjs --all --out dist           # every region × style × format + dist/index.html
 node template/generate.mjs --region london --style line --format mobile --seed 7 > london.svg
 node scripts/check.mjs --out qa                       # visual QA → qa/report.md
+node scripts/gif.mjs --region london                  # animated GIFs (both desktop and mobile)
 ```
 
 ### On a website
@@ -178,6 +179,17 @@ Or as a decorative image:
 
 Each SVG uses `preserveAspectRatio="xMidYMid slice"` (it behaves like `cover`). The QA guarantees
 that the landmark stays visible on desktop screens from 16:10 to 21:9 and on phones from 9:20 to 9:16.
+
+### Export to animated GIF
+
+Convert SVG animations into lightweight GIFs for slides, previews, or social media (10s loop by default):
+
+```sh
+node scripts/gif.mjs --region australia                    # exports both desktop and mobile
+node scripts/gif.mjs --region thailand --format desktop    # desktop only (800x450)
+node scripts/gif.mjs examples/london-flat-mobile.svg       # convert specific SVG
+node scripts/gif.mjs --all --out dist/gifs                 # all variants
+```
 
 ## The QA harness
 
@@ -208,6 +220,7 @@ land, a floating rock) and a clean control, and fails if anything goes unreporte
 ```
 SKILL.md                    instructions Claude follows: workflow, contract, design rules
 scripts/check.mjs           QA harness (one file, zero deps)
+scripts/gif.mjs             GIF converter: desktop & mobile (one file, zero deps)
 scripts/selftest.mjs        proves the harness catches known-bad scenes in scripts/fixtures/
 template/                   the generator; copied into a project on first use
   generate.mjs              orchestration: render(), variants(), CLI
